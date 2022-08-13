@@ -1,6 +1,7 @@
 import { Container } from '@mui/material'
 import React from 'react'
 // import styles from './Navbar.module.css'
+import { Auth, SetAuth } from "../../App";
 import "./navbar.css"
 
 
@@ -9,7 +10,25 @@ import "./navbar.css"
 
 function Navbar() {
 
-  const[val,setState]=React.useState(true)
+  const[val,setState]=React.useState(true);
+  const auth = React.useContext(Auth);
+  const setAuth = React.useContext(SetAuth);  
+  // console.log(auth);
+
+  var bool;
+  if(localStorage.getItem('token')==null){
+    bool=false;
+  }else{
+    bool=true;
+  }
+
+  var prof;
+
+  if(bool){
+    prof='/profile';
+  }else{
+    prof='/login';
+  }
 
   return (
       <div>
@@ -36,19 +55,29 @@ function Navbar() {
   
   <div className="nav-links">
     <a href="/market">Market</a>
-    <a href="/profile">Check Credit</a>
-    <a href="/instructions" target="_blank">Instructions</a>
+    <a href='/profile'>Profile</a>
+    <a href="/instructions">Instructions</a>
     <a href="/rules" target="_blank">Rules</a>
-    <a href="/contact" target="_blank">Contacts</a>
-    <a href="https://mail.google.com/mail/?view=cm&fs=1&tf=1&to=target@email.com" target="_blank">Feedback</a>
+    <a href="/contact">Contact</a>
+    {/* <a href="mailto:someone@example.com" target="_blank">Feedback</a> */}
     {/* <a href="/login">Login</a> */}
 
-    {localStorage.getItem('email')==null && <a href="/login" onClick={()=>setState(!val)}>Login</a>}
-    {!(localStorage.getItem('email')==null) && <a href="/" onClick={()=>{
+    {!(auth) && <a href="/login" onClick={() => {
+      
+      setState(!val)
+      
+      }} id="navbarLoginButton">Login</a>}
+    {(auth) && <a href="/" onClick={() => {
       setState(!val);
-      localStorage.clear();
-      console.log("skdclsvhldbvlsuvusvbudhfv");
-    }}>Logout</a>}
+      // setAuth(false);
+      // console.log(auth);
+      Object.keys(localStorage).forEach(function(key) {
+      if (key !== 'firstTimeLogin') {
+        localStorage.removeItem(key)
+      }
+      // console.log(key)
+      })
+    }} id="navbarLoginButton">Logout</a>}
 
 
   </div>

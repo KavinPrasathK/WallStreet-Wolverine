@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef,createContext, useContext, useEffect } from "react";
 import Button from "../../components/Button/Button";
 import FormField from "../../components/FormField/FormField";
 import { LOGIN_FORM_FIELDS } from "../../data/RegisterDetails";
@@ -9,18 +9,24 @@ import "react-responsive-modal/styles.css";
 import { Modal } from "react-responsive-modal";
 import Heading from "../../components/Heading/Heading";
 import Popup from "../../components/Popup/Popup";
-import { validateForm } from "../../validators/registerFormValidator";
 import { ReactNotifications, Store } from 'react-notifications-component'
 import 'react-notifications-component/dist/theme.css'
 import "animate.css"
+// import googleIcon from "/";
 import { useNavigate } from "react-router-dom";
 import { apicheckUser } from "../../auth/auth";
+import {apiGoogleSignin} from "../../auth/auth"
+import { Auth, SetAuth } from "../../App";
+
+
 const axios = require('axios');
 
 const loginDetailsFormat = {
     email: "",
     pwd: ""
 }
+
+
 
 const k_api = axios.create({
     // baseURL: "http://localhost:3001/",
@@ -38,12 +44,45 @@ const apiLogin = async (data) => {
     }
 };
 
+const showMessage = (title, type) => {
+    Store.addNotification({
+        title: title,
+        type: type,
+        insert: "bottom",
+        container: "top-right",
+        animationIn: ["animate__animated", "animate__fadeIn"],
+        animationOut: ["animate__animated", "animate__fadeOut"],
+        dismiss: {
+            duration: 3000,
+            onScreen: true
+        }
+    })
+}
+
+ 
+  
 function RegisterForm() {
+
+    useEffect(() => {
+      const script = document.createElement('script');
+    
+      script.src = "https://apis.google.com/js/platform.js";
+      script.async = true;
+    
+      document.body.appendChild(script);
+    
+      return () => {
+        document.body.removeChild(script);
+      }
+    }, []);
+
+    const auth = React.useContext(Auth)
+    const setAuth = React.useContext(SetAuth);
+
     const navigate = useNavigate()
+    let reCaptchaRef = useRef(null);
     const [checked, setChecked] = useState(false);
     const [isDisabled, setIsDisabled] = useState(true);
-    let reCaptchaRef = useRef(null);
-
     // const [registerDetails, setRegisterDetails] = useState(registerDetailsFormat);
     const [loginDetails, setLoginDetails] = useState(loginDetailsFormat);
     const [isModalOpen, setIsModalOpen] = useState(false)
@@ -56,29 +95,12 @@ function RegisterForm() {
         setLoginDetails({ ...prevState })
     }
 
-    var toastNotification = {
-        title: "Note:",
-        message: "",
-        type: "danger",
-        insert: "bottom",
-        container: "top-right",
-        animationIn: ["animate__animated", "animate__fadeIn"],
-        animationOut: ["animate__animated", "animate__fadeOut"],
-        dismiss: {
-            duration: 4000,
-            onScreen: true
-        }
-    }
-
     const clickedSubmit = async () => {
-
-        const axios = require('axios');
-
         if (reCaptchaRef.current.getValue() === "") {
-            // showErrorToastNotification(<p>reCaptcha verification failed</p>);
+            showMessage("reCaptcha verification failed", "danger")
             return;
         }
-
+        setloader(true)
         //   console.log({...loginDetails,captcha: reCaptchaRef.current.getValue()});
 
         const resp = await apiLogin({
@@ -86,37 +108,48 @@ function RegisterForm() {
             captcha: reCaptchaRef.current.getValue(),
         });
 
-
         reCaptchaRef.current.reset();
-
+        setloader(false)
         if (resp === undefined) {
-            // showErrorToastNotification(<p>Please try again after sometime</p>);
+            showMessage("Please try again after sometime", "danger")
         } else {
             if (resp.status === 200) {
-                //  setAuth(true);
-                console.log(resp.data.message);
-                Store.addNotification({ ...toastNotification, message: resp.data.message })
+                setAuth(true);
+                // console.log(auth);
+                // console.log(resp.data.message);
+                showMessage("Login successful!", "success")
+                // setAuth(true);
 
                 //   Success
                 //       showSuccessToastNotification(<p>Logged in!</p>)
                 //   localStorage.setItem("details", stringifyUserDetails(resp.data));
                 localStorage.setItem("token", resp.data.token);
-                localStorage.setItem("email", resp.data.email);
-                localStorage.setItem("kid", resp.data.kid);
-                localStorage.setItem("firstname", resp.data.firstname);
-                localStorage.setItem("lastname", resp.data.lastname);
-                localStorage.setItem("phone", resp.data.phone);
-                localStorage.setItem("dept", resp.data.dept);
-                localStorage.setItem("index",1);
-                console.log(resp.data)
-                navigate("/");
-                const config = {
-                    headers: {
-                        authorization: localStorage.getItem("token"),
-                    },
+                // localStorage.setItem("email", resp.data.email);
+                // localStorage.setItem("kid", resp.data.kid);
+                // localStorage.setItem("firstname", resp.data.firstname);
+                // localStorage.setItem("lastname", resp.data.lastname);
+                // localStorage.setItem("phone", resp.data.phone);
+                // localStorage.setItem("dept", resp.data.dept);
+                localStorage.setItem('index',1);
+
+                // if(localStorage.getItem('token')!=null){
+                //     setAuth(true);
+                //     console.log(auth);
+                // }
+
+               
+                // console.log(auth);
+                // auth=true;
+                // console.log(auth);
+
+                const config={
+                  headers:{
+                    authorization:localStorage.getItem("token"),
+                  }
                 };
 
                 const loginRes = await apicheckUser(config);
+                navigate('/profile');
                 // console.log(loginRes);
                 // if ((loginRes === undefined) || !(response.status >= 200 && response.status <= 299)) {
                 //     localStorage.clear();
@@ -124,18 +157,23 @@ function RegisterForm() {
                 // }
 
 
+                if (localStorage.getItem("firstTimeLogin") === null) {
+                    setIsModalOpen(true);
+                } else {
+                    // navigate("/profile");
+                    window.location.href = '/profile'
+                }
+                console.log(resp.data)
             } else if (resp.status >= 400 && resp.status < 500) {
                 console.log(resp.data.message);
-                Store.addNotification({ ...toastNotification, message: resp.data.message })
-                //   showErrorToastNotification(<p>{resp.data.message}</p>);
+                showMessage(resp.data.message, "danger")
             } else if (resp.status >= 500 && resp.status < 600) {
                 console.log(resp.data.message);
-                Store.addNotification({ ...toastNotification, message: resp.data.message })
-                //   showErrorToastNotification(<p>{resp.data.message}</p>);
+                showMessage(resp.data.message, "danger")
             }
         }
-        // window.location.href = "/";
-        return
+          // window.location.href="/profile";
+
     }
 
 
@@ -152,7 +190,10 @@ function RegisterForm() {
                 style={{ display: loader ? "none" : "flex" }}
                 className={`${styles.formWrapper}`}
             >
-                <Heading text='Login' />
+                <div className={`${styles.googleIcon}`}>
+                  <img src='assets/images/google.png' onClick={()=>{apiGoogleSignin()}} alt="gimage" />
+                </div>
+
                 {LOGIN_FORM_FIELDS.map((field, key) => {
                     return (
                         <>
@@ -172,11 +213,17 @@ function RegisterForm() {
                     sitekey={"6LcMoTUdAAAAAGFo2lgEFl5sIpitgdT-lExG05FL"}
                     theme="dark"
                     size="normal"
-                    className="recaptcha"
+                    className={styles.recaptcha_container}
                     ref={reCaptchaRef}
                 />
                 <div>
-                    <Button text={"Login"} onClickMethod={clickedSubmit} />
+                    <Button text={"Login"} onClickMethod={clickedSubmit} color='rgb(255, 100, 0)'/>
+                    <Modal showCloseIcon={false} open={isModalOpen} onClose={() => { setIsModalOpen(false) }} center autofocus={false} classNames={{
+                        overlay: `${styles.customOverlay}`,
+                        modal: `${styles.customModal}`,
+                    }}>
+                        <Popup />
+                    </Modal>
                 </div>
                 <button
                     className={styles.btn_s}
@@ -184,10 +231,10 @@ function RegisterForm() {
                 >
                     Sign Up for K!
                 </button>
-
             </div>
         </>
     );
 }
 
 export default RegisterForm;
+
